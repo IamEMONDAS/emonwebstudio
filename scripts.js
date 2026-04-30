@@ -34,7 +34,6 @@ const state = {
 const app = {
 
     init() {
-        // Guaranteed loader removal inside JS
         setTimeout(() => {
             const loader = document.getElementById('loader');
             if (loader) loader.classList.add('hidden');
@@ -193,17 +192,42 @@ const app = {
         state.finalTotal = grandTotal;
     },
 
-    // --- WHATSAPP CHECKOUT ---
-    checkoutWhatsApp() {
-        const rName = document.getElementById('recName').value.trim();
-        const rPhone = document.getElementById('recPhone').value.trim();
-        const rAddress = document.getElementById('recAddress').value.trim();
+    // --- BULLETPROOF INSTAGRAM CHECKOUT WITH INSTRUCTIONS ---
+    checkoutInstagram() {
+        // 1. Grab HTML elements
+        const elName = document.getElementById('recName');
+        const elPhone = document.getElementById('recPhone');
+        const elAddress = document.getElementById('recAddress');
 
-        if (!rName || !rPhone || !rAddress) {
-            alert("Please provide the delivery details to complete your story.");
+        const rName = elName.value.trim();
+        const rPhone = elPhone.value.trim();
+        const rAddress = elAddress.value.trim();
+
+        // 2. Visual Validation (Red Boxes)
+        let isValid = true;
+        const errorColor = '#FF4D4D';
+        const defaultColor = 'var(--border-color)';
+
+        if (!rName) { elName.style.borderColor = errorColor; isValid = false; } else { elName.style.borderColor = defaultColor; }
+        if (!rPhone) { elPhone.style.borderColor = errorColor; isValid = false; } else { elPhone.style.borderColor = defaultColor; }
+        if (!rAddress) { elAddress.style.borderColor = errorColor; isValid = false; } else { elAddress.style.borderColor = defaultColor; }
+
+        if (!isValid) {
+            const btn = document.getElementById('orderBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⚠️ Please fill delivery details';
+            btn.style.background = errorColor;
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.background = 'transparent';
+            }, 3000);
+            
+            document.getElementById('lblRecName').scrollIntoView({behavior: 'smooth', block: 'center'});
             return;
         }
 
+        // 3. Build Text Message
         let msg = `*✨ Heartory - A New Story Begins ✨*\n\n`;
 
         if (state.mode === 'boxes') {
@@ -237,10 +261,64 @@ const app = {
         msg += `Phone: ${rPhone}\n`;
         msg += `Address: ${rAddress}\n`;
 
-        const waNumber = "918798265254";
-        const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`;
-        
-        window.open(waUrl, '_blank');
+        // 4. Instructional UI & Redirect Function
+        const btn = document.getElementById('orderBtn');
+        const originalText = btn.innerHTML;
+
+        const triggerRedirect = () => {
+            btn.innerHTML = '📋 Copied! Redirecting...';
+            
+            // Create the instruction box
+            const instructionBox = document.createElement('div');
+            instructionBox.id = 'copyInstruction';
+            instructionBox.innerHTML = `
+                <div style="background: #FDFBF7; color: var(--text-dark); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-size: 0.95rem; border: 1px solid var(--accent-gold); box-shadow: 0 4px 15px rgba(200, 169, 126, 0.2); animation: fadeUp 0.3s ease;">
+                    <strong style="color: var(--accent-gold);"><i class="fa-solid fa-check-circle"></i> Order Details Copied!</strong><br><br>
+                    Opening Instagram now... Just click <b>Message</b>, hit <b>Paste</b>, and <b>Send</b> it to us!
+                </div>
+            `;
+            
+            // Insert it right above the secure text line
+            const secureText = document.querySelector('.secure-text');
+            btn.parentNode.insertBefore(instructionBox, secureText);
+
+            // Wait 3.5 seconds so they can read the instructions, then redirect
+            setTimeout(() => {
+                window.location.href = "https://instagram.com/heartorygifts";
+                
+                // Clean up the UI in case they hit the back button
+                setTimeout(() => { 
+                    btn.innerHTML = originalText; 
+                    if(document.getElementById('copyInstruction')) {
+                        document.getElementById('copyInstruction').remove();
+                    }
+                }, 2000);
+            }, 3500); 
+        };
+
+        // 5. Execute Copy and Redirect
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(msg).then(triggerRedirect);
+        } else {
+            // Fallback for older browsers
+            let textArea = document.createElement("textarea");
+            textArea.value = msg;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                triggerRedirect();
+            } catch (err) {
+                alert("Your browser blocked the auto-copy. Please DM us your details on Instagram manually!");
+                window.location.href = "https://instagram.com/heartorygifts";
+            }
+            textArea.remove();
+        }
     }
 };
 
